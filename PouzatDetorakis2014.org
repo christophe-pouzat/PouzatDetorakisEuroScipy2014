@@ -391,10 +391,10 @@ underlying waveform. Sticking to the first order we get for the
 variance:
 #+NAME: eq:g-variance
 \begin{equation}
-\mathrm{Var}\left(g(t)\right) = \mathrm{E}\left[\left(g(t)-f(t)\right)^2\right] \approx  \sigma^2_{\Delta} \, f'(t)^2 \, .
+\mathrm{Var}\left(g(t)\right) = \mathrm{E}\left[\left(g(t)-f(t)\right)^2\right] \approx  \sigma^2_{\Delta} \, f'(t)^2 +  \sigma^2_{\Delta}.
 \end{equation}
 
-Implying that the standard deviation of our events should be
+Implying that the square root of the events variance minus the noise variance should be
 proportional to their absolute derivative; this explains why the MAD (a
 robust estimate of the standard deviation) peaks on the rising phase of
 the cluster centre (Fig. \ref{fig:FirstTwoClusters}, top right) since that's where
@@ -565,7 +565,6 @@ plt.ion()
 
 #+BEGIN_SRC python :noweb yes :tangle minimal-complete.py :eval no-export
 <<download-data>>
-<<unzip-data>>
 <<import-swp>>
 <<setup-np>>
 <<load-data>>
@@ -620,10 +619,10 @@ print(len(sp4))
 #+END_SRC
 
 ** Downloading the data :export:
-The data are available and can be downloaded with (watch out, you must use slightly different commands if you're using =Python 2=): 
+The data are available on [[https://zenodo.org/record/14607][zenodo]] \cite{Pouzat:2015a} and can be downloaded with (watch out, you must use slightly different commands if you're using =Python 2=): 
 
 #+NAME: download-data
-#+BEGIN_SRC python :exports code :results silent
+#+BEGIN_SRC python :exports code :results silent :eval no-export
 try:
     from urllib.request import urlretrieve # Python 3
 except ImportError:
@@ -631,16 +630,7 @@ except ImportError:
     
 urlretrieve('https://zenodo.org/record/14607/files/LocustDemoData.hdf5','LocustDemoData.hdf5')
 #+END_SRC
-The data were stored as single precision floating point number in [[http://www.hdfgroup.org/HDF5/][HDF5]] format with one 'data set' per recording channel. We get access to the file's content with module [[http://docs.h5py.org/en/latest/][h5py]]: 
-
-#+NAME: unzip-data
-#+BEGIN_SRC python :results silent
-from os import system
-[system("gunzip " + fn) for fn in data_names]
-#+END_SRC
-20 seconds of data sampled at 15 kHz are contained in these files (see \cite{PouzatEtAl_2002} for details). Four
-files corresponding to the four electrodes or recording sites of a
-/tetrode/ (see Sec. why-tetrode) are used. 
+The data were stored as single precision floating point number in [[http://www.hdfgroup.org/HDF5/][HDF5]] format with one 'data set' per recording channel. The four data sets are labeled: =1=, =2=, =3= and =4=. 20 seconds of data sampled at 15 kHz are contained in these files (see \cite{PouzatEtAl_2002} for details). We will get access to the file's content with module [[http://docs.h5py.org/en/latest/][h5py]]. 
 
 ** Importing the required modules and loading the data :export:
 
@@ -658,6 +648,7 @@ We are going to use =numpy= and =pylab=. We are also going to use the interactiv
 #+BEGIN_SRC python :results silent
 import numpy as np
 import matplotlib.pylab as plt
+import h5py
 plt.ion()
 #+END_SRC
 
@@ -665,14 +656,18 @@ If instead of the "basic" =Python= console, =IPython= with the =--pylab= command
 
 #+NAME: load-data
 #+BEGIN_SRC python :results silent
-# Create a list with the file names
-data_files_names = ['Locust_' + str(i) + '.dat' for i in range(1,5)]
-# Get the lenght of the data in the files
-data_len = np.unique(list(map(len, map(lambda n:
-                                       np.fromfile(n,np.double),
-                                       data_files_names))))[0]
-# Load the data in a list of numpy arrays
-data = [np.fromfile(n,np.double) for n in data_files_names]
+# Open the HDF5 file containing the data in read only mode
+f = h5py.File("LocustDemoData.hdf5", "r")
+# Get the arrays' shape
+dset = f["1"]
+data_shape = dset.shape
+data_len = data_shape[0]
+# Read the data stored on 32 bit in 64 bit arrays
+data = [np.empty(data_shape,dtype=np.float64) for i in range(4)]
+for i in range(4):
+    dset = f[str(i+1)]
+    dset.read_direct(data[i])
+f.close()
 #+END_SRC
 
 ** Preliminary analysis :export:
@@ -692,7 +687,6 @@ np.set_printoptions(precision=3)
 :  array([ -8.229,  -0.45 ,  -0.036,   0.396,  11.742]),
 :  array([-6.89 , -0.53 , -0.042,  0.469,  9.849]),
 :  array([ -7.347,  -0.492,  -0.04 ,   0.431,  10.564])]
-
 In the above result, each row corresponds to a recording channel, the first column contains the minimal value; the second, the first quartile; the third, the median; the fourth, the third quartile; the fifth, the maximal value.
 We see that the data range (=maximum - minimum=) is similar (close to 20) on the four recording sites. The inter-quartiles ranges are also similar.
 
@@ -705,11 +699,10 @@ We can check next if some processing like a division by the /standard deviation/
 #+END_SRC
 
 #+RESULTS: data-standard-deviation
-: [0.99999833333194166,
-:  0.99999833333193622,
-:  0.99999833333194788,
-:  0.99999833333174282]
-
+: [0.99999833366776292,
+:  0.99999833345578371,
+:  0.99999833309865449,
+:  0.99999833355136358]
 We see that SD normalization was indeed applied to these data…
 
 *** Discretization step amplitude
@@ -721,10 +714,10 @@ We can easily obtain the size of the digitization set:
 #+END_SRC
 
 #+RESULTS: data-discretization-step-amplitude
-: [0.0067098450784115471,
-:  0.0091945001879327748,
-:  0.011888432902217971,
-:  0.0096140421286605715]
+: [0.0067090988159179688,
+:  0.0091938972473144531,
+:  0.011888027191162109,
+:  0.0096139907836914062]
 
 ** Plot the data :export:
 Plotting the data for interactive exploration is trivial. The only trick is to add (or subtract) a proper offest (that we get here using the maximal value of each channel from our five-number summary), this is automatically implemented in our =plot_data_list= function:
