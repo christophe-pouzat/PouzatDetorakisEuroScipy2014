@@ -391,7 +391,7 @@ underlying waveform. Sticking to the first order we get for the
 variance:
 #+NAME: eq:g-variance
 \begin{equation}
-\mathrm{Var}\left(g(t)\right) = \mathrm{E}\left[\left(g(t)-f(t)\right)^2\right] \approx  \sigma^2_{\Delta} \, f'(t)^2 +  \sigma^2_{\Delta}.
+\mathrm{Var}\left(g(t)\right) = \mathrm{E}\left[\left(g(t)-f(t)\right)^2\right] \approx  \sigma^2_{\Delta} \, f'(t)^2 +  \sigma^2_{Z}.
 \end{equation}
 
 Implying that the square root of the events variance minus the noise variance should be
@@ -628,7 +628,8 @@ try:
 except ImportError:
     from urllib import urlretrieve # Python 2
     
-urlretrieve('https://zenodo.org/record/14607/files/LocustDemoData.hdf5','LocustDemoData.hdf5')
+urlretrieve('https://zenodo.org/record/14607/files/LocustDemoData.hdf5',
+            'LocustDemoData.hdf5')
 #+END_SRC
 The data were stored as single precision floating point number in [[http://www.hdfgroup.org/HDF5/][HDF5]] format with one 'data set' per recording channel. The four data sets are labeled: =1=, =2=, =3= and =4=. 20 seconds of data sampled at 15 kHz are contained in these files (see \cite{PouzatEtAl_2002} for details). We will get access to the file's content with module [[http://docs.h5py.org/en/latest/][h5py]]. 
 
@@ -667,6 +668,7 @@ data = [np.empty(data_shape,dtype=np.float64) for i in range(4)]
 for i in range(4):
     dset = f[str(i+1)]
     dset.read_direct(data[i])
+
 f.close()
 #+END_SRC
 
@@ -807,10 +809,10 @@ data_mad
 #+END_SRC
 
 #+RESULTS: raw-data-mad
-: [0.51729684828925626,
-:  0.62706123501700972,
-:  0.74028320607479514,
-:  0.68418138527772443]
+: [0.51729686037227507,
+:  0.62706122877895831,
+:  0.74028318893238898,
+:  0.68418136553317299]
 And we normalize accordingly (we also subtract the =median= which is not exactly 0):
 
 #+NAME: normalize-data
@@ -928,7 +930,7 @@ We now use function =peak= on the sum of the rows of our filtered and rectified 
 sp0 = swp.peak(data_filtered.sum(0))
 #+END_SRC
 
-Giving src_python[:results pp]{len(sp0)} =1795= spikes, a mean inter-event interval of src_python[:results pp]{round(np.mean(np.diff(sp0)))} =167.0= sampling points, a standard deviation of src_python[:results pp]{round(np.std(np.diff(sp0)))} =144.0= sampling points, a smallest inter-event interval of src_python[:results pp]{np.min(np.diff(sp0))} =16= sampling points and a largest of src_python[:results pp]{np.max(np.diff(sp0))} =1157= sampling points.
+Giving src_python[:results pp]{len(sp0)} =1795=  pikes, a mean inter-event interval of src_python[:results pp]{round(np.mean(np.diff(sp0)))} =167.0= sampling points, a standard deviation of src_python[:results pp]{round(np.std(np.diff(sp0)))} =144.0= sampling points, a smallest inter-event interval of src_python[:results pp]{np.min(np.diff(sp0))} =16= sampling points and a largest of src_python[:results pp]{np.max(np.diff(sp0))} =1157= sampling points.
 
 *** Interactive spike detection check
 We can then check the detection quality with:
@@ -1178,21 +1180,21 @@ evtsVar = sum(s)
 
 #+RESULTS:
 #+begin_example
-[(0, -577.55150481947271),
- (1, -277.46515432919693),
- (2, -187.56341162342244),
- (3, -128.03907765900976),
- (4, -91.318669099617523),
- (5, -58.839887602313866),
- (6, -36.363067446924333),
- (7, -21.543722414005401),
- (8, -8.2644951775204163),
- (9, 0.28488929424565868),
- (10, 6.9067335500935769),
- (11, 13.341548838374592),
- (12, 19.472089099227219),
- (13, 25.25533564753357),
- (14, 29.10210471304174)]
+[(0, -577.5515066116734),
+ (1, -277.46515935275136),
+ (2, -187.56341656714392),
+ (3, -128.03907988426477),
+ (4, -91.318670546159069),
+ (5, -58.839889062817178),
+ (6, -36.363068625815572),
+ (7, -21.543723178114874),
+ (8, -8.2644956569712349),
+ (9, 0.28488890649634868),
+ (10, 6.9067332866402467),
+ (11, 13.341548795824792),
+ (12, 19.472089205774182),
+ (13, 25.255335860239143),
+ (14, 29.102105026191794)]
 #+end_example
 This suggests that keeping the first 10 PCs should be more than enough.
 
@@ -1430,7 +1432,7 @@ swp.classify_and_align_evt(sp0[0],np.array(data),centers)
 #+END_SRC
 
 #+RESULTS:
-: ['Cluster 7', 281, -0.14107833394834743]
+: ['Cluster 7', 281, -0.14107835097978202]
 We can use the function on every detected event. A trick here is to store the matrix version of the data in order to avoid the conversion of the list of vectors (making the data of the different channels) into a matrix for each detected event:
 
 #+NAME: round0
@@ -1755,7 +1757,7 @@ plt.close()
 #+NAME: fig:FifthPeeling
 #+ATTR_LaTeX: :width 0.8\textwidth
 #+RESULTS:
-[[file:img/FifthPeeling.png]]
+[[file:imgFifthPeeling.png]]
 
 *** General comparison :export:
 We can compare the raw data with the fifth peeling on the first second (Fig. \ref{fig:RawVSFifthPeeling}):
@@ -1813,6 +1815,7 @@ try:
     round_all = round0.copy() # Python 3
 except AttributeError:
     round_all = round0[:] # Python 2
+
 round_all.extend(round1)
 round_all.extend(round2)
 round_all.extend(round3)
@@ -1829,14 +1832,14 @@ The number of spikes attributed to each neuron is:
 #+RESULTS:
 #+begin_example
 [('Cluster 7', 233),
- ('Cluster 2', 101),
- ('Cluster 4', 63),
- ('Cluster 9', 588),
- ('Cluster 0', 92),
- ('Cluster 3', 173),
- ('Cluster 8', 456),
  ('Cluster 6', 238),
+ ('Cluster 8', 456),
+ ('Cluster 4', 63),
+ ('Cluster 3', 173),
  ('Cluster 5', 149),
+ ('Cluster 0', 92),
+ ('Cluster 2', 101),
+ ('Cluster 9', 588),
  ('Cluster 1', 173)]
 #+end_example
 
@@ -2311,9 +2314,8 @@ delta_hat = np.dot(c1D_median,
 delta_hat
 #+END_SRC
 
-#+RESULTS:
-: 1.4917182304326999
-
+#+RESULTS: delta_hat
+: 1.4917182692917244
 We can use this estimated value of =delta_hat= as an initial guess for a procedure refining the estimate using also the $δ^2$ term. The obvious quantity we should try to minimize is the residual sum of square, =RSS= defined by:
 \begin{displaymath}
 \mathrm{RSS}(δ) = \| \mathbf{g} - \mathbf{f} - δ \, \mathbf{f'} - δ^2/2 \, \mathbf{f''} \|^2 \; .
